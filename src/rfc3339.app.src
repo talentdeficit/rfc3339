@@ -1,0 +1,12 @@
+{application, rfc3339,
+[
+    {description, "an rfc3339 parser and formatter"},
+    {vsn, "0.0.1"},
+    {modules, [rfc3339]},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib
+    ]},
+    {env, []}
+]}.
