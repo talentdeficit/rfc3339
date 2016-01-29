@@ -1,6 +1,6 @@
-# iso8601
+# rfc3339
 
-parse and format iso8601 strings in elixir and erlang
+parse and format rfc3339 strings in elixir and erlang
 
 
 ## todo
