@@ -7,7 +7,7 @@ defmodule RFC3339.Mixfile do
     [app: :rfc3339,
      version: @version,
      description: description,
-     elixir: ">= 1.0.5",
+     elixir: ">= 1.2",
      package: package,
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,

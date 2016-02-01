@@ -3,12 +3,6 @@ elixir:
   - 1.2.1
 otp_release:
   - 18.2
-matrix:
-  include:
-    - elixir: 1.0.5
-      otp_release: 17.5
-    - elixir: 1.1.0
-      otp_release: 17.5
 notifications:
   recipients:
     - alisdairsullivan@yahoo.ca
