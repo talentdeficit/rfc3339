@@ -81,10 +81,13 @@ mapify(Time) when is_integer(Time) ->
   #{year => Year, month => Month, day => Day, hour => Hour, min => Min, sec => Sec, usec => USec};
 mapify(_) -> {error, badarg}.
 
--spec format(map() | {date(), time(), usec(), tz()} | integer()) -> {ok, binary()} | {error, error()}.
+-spec format(map() | {date(), time(), usec(), tz()} | datetime() | integer()) -> {ok, binary()} | {error, error()}.
 format({Date, Time, USec, Tz})
 when is_tuple(Date), is_tuple(Time) ->
   format(mapify(Date, Time, USec, Tz, #{}));
+format({Date, Time})
+when is_tuple(Date), is_tuple(Time) ->
+  format(mapify(Date, Time, undefined, undefined, #{}));
 format(Time) when is_integer(Time) ->
   %% USec is the greatest fidelity supported. nano seconds are converted lossily 
   USec = erlang:convert_time_unit(Time, native, micro_seconds),
