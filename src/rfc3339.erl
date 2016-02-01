@@ -2,169 +2,146 @@
 
 -export([parse/1]).
 -export([format/1]).
--export([to_tuple/1]).
 -export([to_map/1]).
--export_type([datetime/0, date/0, time/0, tz/0]).
--export_type([year/0, month/0, day/0]).
--export_type([hour/0, min/0, sec/0, usec/0]).
--export_type([tz_offset/0]).
 -export_type([(error/0)]).
 
--type datetime() :: {date(), time(), tz()}.
+-type datetime() :: {date(), time()}.
 
 -type date() :: {year(), month(), day()}.
 -type year() :: 0..9999.
--type month() :: 0..12.
--type day() :: 0..31.
+-type month() :: 1..12.
+-type day() :: 1..31.
 
--type time() :: {hour(), min(), sec(), usec()}.
+-type time() :: {hour(), min(), sec()}.
 -type hour() :: 0..24.
 -type min() :: 0..59.
 -type sec() :: 0..60.
+
 -type usec() :: 0..999999.
 
 -type tz() :: tz_offset().
 -type tz_offset() :: -1439..1439.
 
--type error() :: map().
+-type error() :: badarg | baddate | badtime | badyear | badday | badhour | badminute | badsecond | badusec | badtimezone.
 
 
--spec parse(binary()) -> {ok, datetime()} | {error, error()}.
-parse(Bin) -> time_or_date(Bin, {undefined, undefined, undefined}).
-
--spec format(map() | datetime()) -> {ok, binary()} | {error, error()}.
-format({{Year, Month, Day}, {Hour, Min, Sec, USec}, Offset}) ->
-  DT = #{year => Year, month => Month, day => Day,
-         hour => Hour, min => Min, sec => Sec, usec => USec,
-         tz_offset => Offset},
-  format(DT);
-format(DT) ->
-  Date = format_date(DT),
-  Time = format_time(DT),
-  format(Date, Time).
-
--spec to_tuple(binary()) -> {ok, datetime()} | {error, error()}.
-to_tuple(Bin) -> parse(Bin).
+-spec parse(binary()) -> {ok, {date(), time(), usec(), tz()}} | {error, error()}.
+parse(Bin) when is_binary(Bin) -> date(Bin, {undefined, undefined, undefined, undefined});
+parse(_) -> {error, badarg}.
 
 -spec to_map(binary()) -> {ok, map()} | {error, error()}.
-to_map(Bin) ->
+to_map(Bin) when is_binary(Bin) ->
   case parse(Bin) of
-    {ok, {Date, Time, Offset}} ->
-      mapify(Date, Time, Offset, #{});
-    {error, Error} -> {error, Error}
-  end.
+    {ok, {Date, Time, USec, Tz}} -> mapify(Date, Time, USec, Tz, #{});
+    {error, Error}               -> {error, Error}
+  end;
+to_map(_) -> {error, badarg}.
 
-mapify(undefined, Time, Offset, Result) -> mapify(Time, Offset, Result);
-mapify({Year, Month, Day}, Time, Offset, Result) ->
-  mapify(Time, Offset, maps:merge(Result, #{year => Year, month => Month, day => Day})).
+mapify({Year, Month, Day}, Time, USec, Tz, Result)
+when is_integer(Year), is_integer(Month), is_integer(Day) ->
+  mapify(Time, USec, Tz, maps:merge(Result, #{year => Year, month => Month, day => Day}));
+mapify(_, _, _, _, _) -> {error, badarg}.
 
-mapify(undefined, _, Result) -> Result;
-mapify({Hour, Min, Sec, undefined}, Offset, Result) ->
-  mapify(Offset, maps:merge(Result, #{hour => Hour, min => Min, sec => Sec})); 
-mapify({Hour, Min, Sec, USec}, Offset, Result) ->
-  mapify(Offset, maps:merge(Result, #{hour => Hour, min => Min, sec => Sec, usec => USec})).
+mapify({Hour, Min, Sec}, USec, Tz, Result)
+when is_integer(Hour), is_integer(Min), is_integer(Sec) ->
+  mapify(USec, Tz, maps:merge(Result, #{hour => Hour, min => Min, sec => Sec})); 
+mapify(_, _, _, _) -> {error, badarg}.
+
+mapify(undefined, Tz, Result) -> mapify(Tz, Result);
+mapify(USec, Tz, Result) when is_integer(USec) ->
+  mapify(Tz, maps:merge(Result, #{usec => USec}));
+mapify(_, _, _) -> {error, badarg}.
 
 mapify(undefined, Result) -> Result;
-mapify(Offset, Result) ->
-  maps:merge(Result, #{tz_offset => Offset}).
+mapify(Tz, Result) when is_integer(Tz) -> maps:merge(Result, #{tz_offset => Tz});
+mapify(_, _) -> {error, badarg}.
 
-time_or_date(<<H1, H2, $:, M1, M2, $:, S1, S2, Rest/binary>>, _Result) ->
-  Hour = to_hour(H1, H2),
-  Min = to_minute(M1, M2),
-  Sec = to_second(S1, S2),
-  usec_or_tz(Rest, {undefined, {Hour, Min, Sec, undefined}, undefined});
-time_or_date(<<Y1, Y2, Y3, Y4, $-, M1, M2, $-, D1, D2, Rest/binary>>, _Result) ->
+
+-spec format(map() | {date(), time(), usec(), tz()}) -> {ok, binary()} | {error, error()}.
+format({Date, Time, USec, Tz})
+when is_tuple(Date), is_tuple(Time) ->
+  format(mapify(Date, Time, USec, Tz, #{}));
+format(Dt) when is_map(Dt) ->
+  Date = format_date(Dt),
+  Time = format_time(Dt),
+  format_(Date, Time).
+
+
+date(<<Y1, Y2, Y3, Y4, $-, M1, M2, $-, D1, D2, Rest/binary>>, {undefined, undefined, undefined, undefined}) ->
   Year = to_year(Y1, Y2, Y3, Y4),
   Month = to_month(M1, M2),
   Day = to_day(D1, D2, Year, Month),
-  time_or_end(Rest, {{Year, Month, Day}, undefined, undefined});
-time_or_date(_, _Result) ->
-  {error, badarg}.
+  Date = coalesce(Year, Month, Day),
+  time(Rest, {Date, undefined, undefined, undefined});
+date(_, _Result) ->
+  {error, baddate}.
 
+%% space
+time(_, {{error, Error}, _, _, _}) -> {error, Error};
+time(<<Sep, H1, H2, $:, M1, M2, $:, S1, S2, Rest/binary>>, {Date, undefined, undefined, undefined})
+when Sep == 16#20 orelse Sep == $t orelse Sep == $T ->
+  Hour = to_hour(H1, H2),
+  Min = to_minute(M1, M2),
+  Sec = to_second(S1, S2),
+  Time = coalesce(Hour, Min, Sec),
+  usec_or_tz(Rest, {Date, Time, undefined, undefined});
+time(_, _) -> {error, badtime}.
 
+usec_or_tz(_, {_, {error, Error}, _, _}) -> {error, Error};
 usec_or_tz(<<$., Rest/binary>>, Result) ->
   usec(Rest, Result, 0, 100000);
 usec_or_tz(Rest, Result) -> tz(Rest, Result).
 
 %% next two clauses burn off fractional seconds beyond microsecond precision
-usec(<<X, Rest/binary>>, Result, undefined, undefined)
+usec(<<X, Rest/binary>>, Result, USec, 0)
 when X >= $0 andalso X =< $9 ->
-  usec(Rest, Result, undefined, undefined);
-usec(Bin, Result, undefined, undefined) ->
-  tz(Bin, Result);
+  usec(Rest, Result, USec, 0);
 %% keep a running acc of usecs
-usec(<<X, Rest/binary>>, Result, Acc, Multiplier)
+usec(<<X, Rest/binary>>, Result, USec, Multiplier)
 when X >= $0 andalso X =< $9 ->
   try list_to_integer([X]) of
-    N -> usec(Rest, Result, Acc + (N * Multiplier), Multiplier div 10)
+    N -> usec(Rest, Result, USec + (N * Multiplier), Multiplier div 10)
   catch
     error:badarg -> {error, badusec}
   end;
 %% not a digit, insert usecs into time and proceed to tz
-usec(Bin, {Date, {Hour, Min, Sec, undefined}, undefined}, Acc, _) ->
-  tz(Bin, {Date, {Hour, Min, Sec, Acc}, undefined});
+usec(Bin, {Date, Time, undefined, undefined}, USec, _) ->
+  tz(Bin, {Date, Time, USec, undefined});
 usec(_, _, _, _) -> {error, badusec}.
 
-tz(<<$+, H1, H2, $:, M1, M2>>, {Date, Time, undefined}) ->
+tz(<<$+, H1, H2, $:, M1, M2>>, {Date, Time, USec, undefined}) ->
   Hour = to_hour(H1, H2),
   Min = to_minute(M1, M2),
-  {ok, {Date, Time, (Hour * 60) + Min}};
-tz(<<$-, H1, H2, $:, M1, M2>>, {Date, Time, undefined}) ->
+  case calc_tz(positive, Hour, Min) of
+    TZ when is_integer(TZ) -> {ok, {Date, Time, USec, TZ}};
+    {error, Error}        -> {error, Error}
+  end;
+tz(<<$-, H1, H2, $:, M1, M2>>, {Date, Time, USec, undefined}) ->
   Hour = to_hour(H1, H2),
   Min = to_minute(M1, M2),
-  {ok, {Date, Time, (Hour * -60) - Min}};
+  case calc_tz(negative, Hour, Min) of
+    TZ when is_integer(TZ) -> {ok, {Date, Time, USec, TZ}};
+    {error, Error}        -> {error, Error}
+  end;
 tz(<<$Z>>, Result) ->
   {ok, Result};
 tz(<<$z>>, Result) ->
   {ok, Result};
 tz(_, _) -> {error, badtimezone}.
 
-%% space
-time_or_end(<<16#20, H1, H2, $:, M1, M2, $:, S1, S2, Rest/binary>>, {Date, undefined, undefined}) ->
-  Hour = to_hour(H1, H2),
-  Min = to_minute(M1, M2),
-  Sec = to_second(S1, S2),
-  usec_or_tz(Rest, {Date, {Hour, Min, Sec, undefined}, undefined});
-time_or_end(<<$t, H1, H2, $:, M1, M2, $:, S1, S2, Rest/binary>>, {Date, undefined, undefined}) ->
-  Hour = to_hour(H1, H2),
-  Min = to_minute(M1, M2),
-  Sec = to_second(S1, S2),
-  usec_or_tz(Rest, {Date, {Hour, Min, Sec, undefined}, undefined});
-time_or_end(<<$T, H1, H2, $:, M1, M2, $:, S1, S2, Rest/binary>>, {Date, undefined, undefined}) ->
-  Hour = to_hour(H1, H2),
-  Min = to_minute(M1, M2),
-  Sec = to_second(S1, S2),
-  usec_or_tz(Rest, {Date, {Hour, Min, Sec, undefined}, undefined});
-time_or_end(<<>>, Result) -> {ok, Result};
-time_or_end(_, _) -> {error, badtime}.
+calc_tz(_, {error, Error}, _) -> {error, Error};
+calc_tz(_, _, {error, Error}) -> {error, Error};
+calc_tz(positive, Hour, Min) -> (Hour * 60) + Min;
+calc_tz(negative, Hour, Min) -> (Hour * -60) - Min.
 
-to_hour(H1, H2) ->
-  try list_to_integer([H1, H2]) of
-    X when X >= 0 andalso X =< 23 -> X;
-    _ -> {error, badhour}
-  catch
-    error:badarg -> {error, badhour}
-  end.
-
-to_minute(M1, M2) ->
-  try list_to_integer([M1, M2]) of
-    X when X >= 0 andalso X =< 59 -> X;
-    _ -> {error, badminute}
-  catch
-    error:badarg -> {error, badminute}
-  end.
-
-to_second(S1, S2) ->
-  try list_to_integer([S1, S2]) of
-    X when X >= 0 andalso X =< 60 -> X;
-    _ -> {error, badsecond}
-  catch
-    error:badarg -> {error, badsecond}
-  end.
+coalesce({error, Error}, _, _) -> {error, Error};
+coalesce(_, {error, Error}, _) -> {error, Error};
+coalesce(_, _, {error, Error}) -> {error, Error};
+coalesce(X, Y, Z) -> {X, Y, Z}.
 
 to_year(Y1, Y2, Y3, Y4) ->
   try list_to_integer([Y1, Y2, Y3, Y4]) of
-    X when X >= 0 andalso X =< 9999 -> X;
+    Year when Year >= 0 andalso Year =< 9999 -> Year;
     _ -> {error, badyear}
   catch
     error:badarg -> {error, badyear}
@@ -172,7 +149,7 @@ to_year(Y1, Y2, Y3, Y4) ->
 
 to_month(M1, M2) ->
   try list_to_integer([M1, M2]) of
-    X when X >= 1 andalso X =< 12 -> X;
+    Month when Month >= 1 andalso Month =< 12 -> Month;
     _ -> {error, badmonth}
   catch
     error:badarg -> {error, badmonth}
@@ -180,10 +157,10 @@ to_month(M1, M2) ->
 
 to_day(D1, D2, Year, Month) ->
   try list_to_integer([D1, D2]) of
-    X when X >= 0 andalso X =< 28 -> X;
-    X when X >= 29 andalso X =< 31 ->
-      case day_in_month(Year, Month, X) of
-        true -> X;
+    Day when Day >= 0 andalso Day =< 28 -> Day;
+    Day when Day >= 29 andalso Day =< 31 ->
+      case day_in_month(Year, Month, Day) of
+        true  -> Day;
         false -> {error, badday}
       end;
     _ -> {error, badday}
@@ -201,37 +178,55 @@ day_in_month(Year, Month, Day) ->
     _ -> true
   end.
 
-format_date(DT) ->
-  Year = maps:get(year, DT, undefined),
-  Month = maps:get(month, DT, undefined),
-  Day = maps:get(day, DT, undefined),
+to_hour(H1, H2) ->
+  try list_to_integer([H1, H2]) of
+    Hour when Hour >= 0 andalso Hour =< 23 -> Hour;
+    _ -> {error, badhour}
+  catch
+    error:badarg -> {error, badhour}
+  end.
+
+to_minute(M1, M2) ->
+  try list_to_integer([M1, M2]) of
+    Min when Min >= 0 andalso Min =< 59 -> Min;
+    _ -> {error, badminute}
+  catch
+    error:badarg -> {error, badminute}
+  end.
+
+to_second(S1, S2) ->
+  try list_to_integer([S1, S2]) of
+    Sec when Sec >= 0 andalso Sec =< 60 -> Sec;
+    _ -> {error, badsecond}
+  catch
+    error:badarg -> {error, badsecond}
+  end.
+
+format_date(Dt) ->
+  Year = g(year, Dt),
+  Month = g(month, Dt),
+  Day = g(day, Dt),
   format_date(Year, Month, Day).
 
 format_date(Y, M, D) when is_integer(Y), is_integer(M), is_integer(D) ->
   io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B", [Y, M, D]);
-format_date(undefined, undefined, undefined) -> {error, nodate};
-format_date(nil, nil, nil) -> {error, nodate};
 format_date(_, _, _) -> {error, baddate}.
 
-format_time(DT) ->
-  Hour = maps:get(hour, DT, undefined),
-  Min = maps:get(min, DT, undefined),
-  Sec = maps:get(sec, DT, undefined),
-  USec = maps:get(usec, DT, undefined),
+format_time(Dt) ->
+  Hour = g(hour, Dt),
+  Min = g(min, Dt),
+  Sec = g(sec, Dt),
+  USec = g(usec, Dt),
   Time = format_time(Hour, Min, Sec, USec),
-  Offset = maps:get(tz_offset, DT, undefined),
+  Offset = g(tz_offset, Dt),
   TZ = format_offset(Offset),
   format_time(Time, TZ).
 
-format_time(H, M, S, undefined) when is_integer(H), is_integer(M), is_integer(S) ->
-  io_lib:format("~2.10.0B:~2.10.0B:~2.10.0B", [H, M, S]);
-format_time(H, M, S, nil) when is_integer(H), is_integer(M), is_integer(S) ->
+format_time(H, M, S, 0) when is_integer(H), is_integer(M), is_integer(S) ->
   io_lib:format("~2.10.0B:~2.10.0B:~2.10.0B", [H, M, S]);
 format_time(H, M, S, U) when is_integer(H), is_integer(M), is_integer(S), is_integer(U) ->
   SU = (S / 1) + (U / 1000000),
   io_lib:format("~2.10.0B:~2.10.0B:~9.6.0f", [H, M, SU]);
-format_time(undefined, undefined, undefined, undefined) -> {error, notime};
-format_time(nil, nil, nil, nil) -> {error, notime};
 format_time(_, _, _, _) -> {error, badtime}.
 
 format_offset(undefined) -> "Z";
@@ -246,9 +241,13 @@ format_offset(M) when is_integer(M) ->
 format_time({error, Error}, _) -> {error, Error};
 format_time(Time, TZ) -> [Time, TZ].
 
-format({error, baddate}, _) -> {error, badarg};
-format(_, {error, badtime}) -> {error, badtime};
-format({error, nodate}, {error, notime}) -> {error, badarg};
-format({error, nodate}, Time) -> unicode:characters_to_binary(Time);
-format(Date, {error, notime}) -> unicode:characters_to_binary(Date);
-format(Date, Time) -> unicode:characters_to_binary([Date, "T", Time]).
+format_({error, baddate}, _) -> {error, badarg};
+format_(_, {error, badtime}) -> {error, badtime};
+format_(Date, Time) -> unicode:characters_to_binary([Date, "T", Time]).
+
+g(Key, Map) ->
+  case maps:get(Key, Map, undefined) of
+    nil       -> 0;
+    undefined -> 0;
+    Val       -> Val
+  end.
