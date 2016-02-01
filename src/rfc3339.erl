@@ -1,8 +1,9 @@
 -module(rfc3339).
 
 -export([parse/1]).
--export([format/1]).
+-export([format/1, format/2]).
 -export([to_map/1]).
+-export([to_time/1, to_time/2]).
 -export_type([(error/0)]).
 
 -type datetime() :: {date(), time()}.
@@ -37,6 +38,22 @@ to_map(Bin) when is_binary(Bin) ->
   end;
 to_map(_) -> {error, badarg}.
 
+-spec to_time(binary()) -> {ok, integer()} | {error, error()}.
+to_time(Bin) when is_binary(Bin) -> to_time(Bin, native).
+
+-spec to_time(binary(), erlang:time_unit()) -> {ok, integer()} | {error, error()}.
+to_time(Bin, Unit) when is_binary(Bin) ->
+  case parse(Bin) of
+    {ok, {Date, {Hour, Min, Sec}, USec, Tz}} ->
+      Epoch = calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}),
+      Time = {Hour, Min + or_zero(Tz), Sec},
+      GregorianSeconds = calendar:datetime_to_gregorian_seconds({Date, Time}),
+      U = erlang:convert_time_unit(or_zero(USec), micro_seconds, Unit),
+      {ok, erlang:convert_time_unit(GregorianSeconds - Epoch, seconds, Unit) + U};
+    {error, Error} -> {error, Error}
+  end.
+      
+
 mapify({Year, Month, Day}, Time, USec, Tz, Result)
 when is_integer(Year), is_integer(Month), is_integer(Day) ->
   mapify(Time, USec, Tz, maps:merge(Result, #{year => Year, month => Month, day => Day}));
@@ -56,15 +73,31 @@ mapify(undefined, Result) -> Result;
 mapify(Tz, Result) when is_integer(Tz) -> maps:merge(Result, #{tz_offset => Tz});
 mapify(_, _) -> {error, badarg}.
 
+mapify(Time) when is_integer(Time) ->
+  Epoch = calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}),
+  GregorianSeconds = Time div 1000000 + Epoch,
+  {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:gregorian_seconds_to_datetime(GregorianSeconds),
+  USec = Time rem 1000000,
+  #{year => Year, month => Month, day => Day, hour => Hour, min => Min, sec => Sec, usec => USec};
+mapify(_) -> {error, badarg}.
 
--spec format(map() | {date(), time(), usec(), tz()}) -> {ok, binary()} | {error, error()}.
+-spec format(map() | {date(), time(), usec(), tz()} | integer()) -> {ok, binary()} | {error, error()}.
 format({Date, Time, USec, Tz})
 when is_tuple(Date), is_tuple(Time) ->
   format(mapify(Date, Time, USec, Tz, #{}));
+format(Time) when is_integer(Time) ->
+  %% USec is the greatest fidelity supported. nano seconds are converted lossily 
+  USec = erlang:convert_time_unit(Time, native, micro_seconds),
+  format(mapify(USec));
 format(Dt) when is_map(Dt) ->
   Date = format_date(Dt),
   Time = format_time(Dt),
   format_(Date, Time).
+
+-spec format(integer(), erlang:time_unit()) -> {ok, binary()} | {error, error()}.
+format(Time, Unit) when is_integer(Time) ->
+  USec = erlang:convert_time_unit(Time, Unit, micro_seconds),
+  format(mapify(USec)).
 
 
 date(<<Y1, Y2, Y3, Y4, $-, M1, M2, $-, D1, D2, Rest/binary>>, {undefined, undefined, undefined, undefined}) ->
@@ -251,3 +284,6 @@ g(Key, Map) ->
     undefined -> 0;
     Val       -> Val
   end.
+
+or_zero(undefined) -> 0;
+or_zero(N) when is_integer(N) -> N.

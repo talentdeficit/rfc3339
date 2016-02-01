@@ -280,6 +280,74 @@ defmodule :rfc3339_maps do
   end
 end
 
+defmodule :rfc3339_inttime do
+  use ExUnit.Case
+
+  test "to_time 1970-01-01T00:00:00Z" do
+    assert {:ok, 0} = :rfc3339.to_time("1970-01-01T00:00:00Z", :micro_seconds)
+  end
+
+  test "encode 1970-01-01T00:00:00Z" do
+    assert "1970-01-01T00:00:00Z" = :rfc3339.format(0, :micro_seconds)
+  end
+
+  test "to_time 1970-01-01T00:00:00.54321Z" do
+    assert {:ok, 543210} = :rfc3339.to_time("1970-01-01T00:00:00.54321Z", :micro_seconds)
+  end
+
+  test "encode 1970-01-01T00:00:00.543210Z" do
+    assert "1970-01-01T00:00:00.543210Z" = :rfc3339.format(543210, :micro_seconds)
+  end
+
+  test "to_time 1970-01-01T00:00:00.54321Z (ms)" do
+    assert {:ok, 543} = :rfc3339.to_time("1970-01-01T00:00:00.54321Z", :milli_seconds)
+  end
+
+  test "encode 1970-01-01T00:00:00.543000Z (ms)" do
+    assert "1970-01-01T00:00:00.543000Z" = :rfc3339.format(543, :milli_seconds)
+  end
+
+  test "to_time 1970-01-01T00:00:00.54321Z (ns)" do
+    assert {:ok, 543210000} = :rfc3339.to_time("1970-01-01T00:00:00.54321Z", :nano_seconds)
+  end
+
+  test "encode 1970-01-01T00:00:00.543000Z (ns)" do
+    assert "1970-01-01T00:00:00.543000Z" = :rfc3339.format(543000000, :nano_seconds)
+  end
+
+  test "to_time 1970-01-01T00:00:06.54321Z" do
+    assert {:ok, 6543210} = :rfc3339.to_time("1970-01-01T00:00:06.54321Z", :micro_seconds)
+  end
+
+  test "encode 1970-01-01T00:00:06.543210Z" do
+    assert "1970-01-01T00:00:06.543210Z" = :rfc3339.format(6543210, :micro_seconds)
+  end
+
+  test "to_time 1979-06-21T12:12:12Z" do
+    assert {:ok, 298815132000000} = :rfc3339.to_time("1979-06-21T12:12:12Z", :micro_seconds)
+  end
+
+  test "encode 1979-06-21T12:12:12Z" do
+    assert "1979-06-21T12:12:12Z" = :rfc3339.format(298815132000000, :micro_seconds)
+  end
+
+  test "to_time 1918-11-11T11:00:00Z" do
+    assert {:ok, -1613826000000000} = :rfc3339.to_time("1918-11-11T11:00:00Z", :micro_seconds)
+  end
+
+  test "encode 1918-11-11T11:00:00Z" do
+    assert "1918-11-11T11:00:00Z" = :rfc3339.format(-1613826000000000, :micro_seconds)
+  end
+
+  test "to_time 1918-11-11T11:00:00+02:00" do
+    assert {:ok, -1613818800000000} = :rfc3339.to_time("1918-11-11T11:00:00+02:00", :micro_seconds)                      
+  end
+
+  test "encode 1918-11-11T11:00:00+02:00" do
+    assert "1918-11-11T13:00:00Z" = :rfc3339.format(-1613818800000000, :micro_seconds)
+  end
+end
+
 defmodule RFC3339Test.Errors do
   use ExUnit.Case
 
