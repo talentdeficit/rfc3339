@@ -102,27 +102,27 @@ defmodule :rfc3339_test do
   end
 
   test "encode 1979-06-21" do
-    assert "1979-06-21T00:00:00Z" = :rfc3339.format({{1979, 6, 21}, {0, 0, 0}, :undefined, :undefined})
+    assert {:ok, "1979-06-21T00:00:00Z"} = :rfc3339.format({{1979, 6, 21}, {0, 0, 0}, :undefined, :undefined})
   end
 
   test "encode 1979-06-21T12:12:12Z" do
-    assert "1979-06-21T12:12:12Z" = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, :undefined, :undefined})
+    assert {:ok, "1979-06-21T12:12:12Z"} = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, :undefined, :undefined})
   end
 
   test "encode 1979-06-21T12:12:12.120000Z" do
-    assert "1979-06-21T12:12:12.120000Z" = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, 120000, :undefined})
+    assert {:ok, "1979-06-21T12:12:12.120000Z"} = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, 120000, :undefined})
   end
 
   test "encode 1979-06-21T12:12:12.000012Z" do
-    assert "1979-06-21T12:12:12.000012Z" = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, 12, :undefined})
+    assert {:ok, "1979-06-21T12:12:12.000012Z"} = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, 12, :undefined})
   end
 
   test "encode 1979-06-21T12:12:12+12:12" do
-    assert "1979-06-21T12:12:12+12:12" = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, :undefined, 732})
+    assert {:ok, "1979-06-21T12:12:12+12:12"} = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, :undefined, 732})
   end
 
   test "encode 1979-06-21T12:12:12-12:12" do
-    assert "1979-06-21T12:12:12-12:12" = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, :undefined, -732})
+    assert {:ok, "1979-06-21T12:12:12-12:12"} = :rfc3339.format({{1979, 6, 21}, {12, 12, 12}, :undefined, -732})
   end
 end
 
@@ -230,27 +230,27 @@ defmodule RFC3339Test do
   end
 
   test "encode 1979-06-21" do
-    assert "1979-06-21T00:00:00Z" = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21})
+    assert {:ok, "1979-06-21T00:00:00Z"} = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21})
   end
 
   test "encode 1979-06-21T12:12:12Z" do
-    assert "1979-06-21T12:12:12Z" = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21, hour: 12, min: 12, sec: 12})
+    assert {:ok, "1979-06-21T12:12:12Z"} = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21, hour: 12, min: 12, sec: 12})
   end
 
   test "encode 1979-06-21T12:12:12.120000Z" do
-    assert "1979-06-21T12:12:12.120000Z" = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21, hour: 12, min: 12, sec: 12, usec: 120000})
+    assert {:ok, "1979-06-21T12:12:12.120000Z"} = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21, hour: 12, min: 12, sec: 12, usec: 120000})
   end
 
   test "encode 1979-06-21T12:12:12.000012Z" do
-    assert "1979-06-21T12:12:12.000012Z" = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21,hour: 12, min: 12, sec: 12, usec: 12})
+    assert {:ok, "1979-06-21T12:12:12.000012Z"} = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21,hour: 12, min: 12, sec: 12, usec: 12})
   end
 
   test "encode 1979-06-21T12:12:12+12:12" do
-    assert "1979-06-21T12:12:12+12:12" = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21, hour: 12, min: 12, sec: 12, tz_offset: 732})
+    assert {:ok, "1979-06-21T12:12:12+12:12"} = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21, hour: 12, min: 12, sec: 12, tz_offset: 732})
   end
 
   test "encode 1979-06-21T12:12:12-12:12" do
-    assert "1979-06-21T12:12:12-12:12" = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21, hour: 12, min: 12, sec: 12, tz_offset: -732})
+    assert {:ok, "1979-06-21T12:12:12-12:12"} = RFC3339.format(%RFC3339{year: 1979, month: 6, day: 21, hour: 12, min: 12, sec: 12, tz_offset: -732})
   end
 end
 
@@ -264,9 +264,9 @@ defmodule :rfc3339_maps do
   end
 
   test "encode 1979-06-21T12:12:12.12+12:12" do
-    assert "1979-06-21T12:12:12.120000+12:12" = :rfc3339.format(%{:year => 1979, :month => 6, :day => 21,
-                                                                  :hour => 12, :min => 12, :sec => 12,
-                                                                  :usec => 120000, :tz_offset => 732})
+    assert {:ok, "1979-06-21T12:12:12.120000+12:12"} = :rfc3339.format(%{:year => 1979, :month => 6, :day => 21,
+                                                                         :hour => 12, :min => 12, :sec => 12,
+                                                                         :usec => 120000, :tz_offset => 732})
   end
 
   test "to_map 1979-06-21T12:12:12Z" do
@@ -275,8 +275,8 @@ defmodule :rfc3339_maps do
   end
 
   test "encode 1979-06-21T12:12:12Z" do
-    assert "1979-06-21T12:12:12Z" = :rfc3339.format(%{:year => 1979, :month => 6, :day => 21,
-                                                      :hour => 12, :min => 12, :sec => 12})
+    assert {:ok, "1979-06-21T12:12:12Z"} = :rfc3339.format(%{:year => 1979, :month => 6, :day => 21,
+                                                             :hour => 12, :min => 12, :sec => 12})
   end
 end
 
@@ -288,7 +288,7 @@ defmodule :rfc3339_inttime do
   end
 
   test "encode 1970-01-01T00:00:00Z" do
-    assert "1970-01-01T00:00:00Z" = :rfc3339.format(0, :micro_seconds)
+    assert {:ok, "1970-01-01T00:00:00Z"} = :rfc3339.format(0, :micro_seconds)
   end
 
   test "to_time 1970-01-01T00:00:00.54321Z" do
@@ -296,7 +296,7 @@ defmodule :rfc3339_inttime do
   end
 
   test "encode 1970-01-01T00:00:00.543210Z" do
-    assert "1970-01-01T00:00:00.543210Z" = :rfc3339.format(543210, :micro_seconds)
+    assert {:ok, "1970-01-01T00:00:00.543210Z"} = :rfc3339.format(543210, :micro_seconds)
   end
 
   test "to_time 1970-01-01T00:00:00.54321Z (ms)" do
@@ -304,7 +304,7 @@ defmodule :rfc3339_inttime do
   end
 
   test "encode 1970-01-01T00:00:00.543000Z (ms)" do
-    assert "1970-01-01T00:00:00.543000Z" = :rfc3339.format(543, :milli_seconds)
+    assert {:ok, "1970-01-01T00:00:00.543000Z"} = :rfc3339.format(543, :milli_seconds)
   end
 
   test "to_time 1970-01-01T00:00:00.54321Z (ns)" do
@@ -312,7 +312,7 @@ defmodule :rfc3339_inttime do
   end
 
   test "encode 1970-01-01T00:00:00.543000Z (ns)" do
-    assert "1970-01-01T00:00:00.543000Z" = :rfc3339.format(543000000, :nano_seconds)
+    assert {:ok, "1970-01-01T00:00:00.543000Z"} = :rfc3339.format(543000000, :nano_seconds)
   end
 
   test "to_time 1970-01-01T00:00:06.54321Z" do
@@ -320,7 +320,7 @@ defmodule :rfc3339_inttime do
   end
 
   test "encode 1970-01-01T00:00:06.543210Z" do
-    assert "1970-01-01T00:00:06.543210Z" = :rfc3339.format(6543210, :micro_seconds)
+    assert {:ok, "1970-01-01T00:00:06.543210Z"} = :rfc3339.format(6543210, :micro_seconds)
   end
 
   test "to_time 1979-06-21T12:12:12Z" do
@@ -328,7 +328,7 @@ defmodule :rfc3339_inttime do
   end
 
   test "encode 1979-06-21T12:12:12Z" do
-    assert "1979-06-21T12:12:12Z" = :rfc3339.format(298815132000000, :micro_seconds)
+    assert {:ok, "1979-06-21T12:12:12Z"} = :rfc3339.format(298815132000000, :micro_seconds)
   end
 
   test "to_time 1918-11-11T11:00:00Z" do
@@ -336,7 +336,7 @@ defmodule :rfc3339_inttime do
   end
 
   test "encode 1918-11-11T11:00:00Z" do
-    assert "1918-11-11T11:00:00Z" = :rfc3339.format(-1613826000000000, :micro_seconds)
+    assert {:ok, "1918-11-11T11:00:00Z"} = :rfc3339.format(-1613826000000000, :micro_seconds)
   end
 
   test "to_time 1918-11-11T11:00:00+02:00" do
@@ -344,7 +344,7 @@ defmodule :rfc3339_inttime do
   end
 
   test "encode 1918-11-11T11:00:00+02:00" do
-    assert "1918-11-11T13:00:00Z" = :rfc3339.format(-1613818800000000, :micro_seconds)
+    assert {:ok, "1918-11-11T13:00:00Z"} = :rfc3339.format(-1613818800000000, :micro_seconds)
   end
 end
 

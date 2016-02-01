@@ -95,7 +95,7 @@ format(Time) when is_integer(Time) ->
 format(Dt) when is_map(Dt) ->
   Date = format_date(Dt),
   Time = format_time(Dt),
-  format_(Date, Time).
+  {ok, format_(Date, Time)}.
 
 -spec format(integer(), erlang:time_unit()) -> {ok, binary()} | {error, error()}.
 format(Time, Unit) when is_integer(Time) ->
