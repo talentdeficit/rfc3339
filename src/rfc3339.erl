@@ -1,6 +1,7 @@
+% vim: sw=4 ts=4 et ft=erlang
 -module(rfc3339).
 
--export([parse/1]).
+-export([parse/1,parse_to_local_datetime/1]).
 -export([format/1, format/2]).
 -export([to_map/1]).
 -export([to_time/1, to_time/2]).
@@ -25,6 +26,17 @@
 
 -type error() :: badarg | baddate | badtime | badyear | badday | badhour | badminute | badsecond | badusec | badtimezone.
 
+%% -spec parse_to_local_datetime(binary()) -> {date(), time()} 
+parse_to_local_datetime(Bin) ->
+    {ok, {Date, Time, _,  TZ}} = parse(Bin),
+    TZSecs = calendar:datetime_to_gregorian_seconds({Date, Time}),
+    UTCDateTime = calendar:gregorian_seconds_to_datetime(case TZ of
+                                                             _ when is_integer(TZ) ->
+                                                                 TZSecs + (60*TZ);
+                                                             _ -> 	
+                                                                 TZSecs
+                                                         end),
+    calendar:universal_time_to_local_time(UTCDateTime).
 
 -spec parse(binary()) -> {ok, {date(), time(), usec(), tz()}} | {error, error()}.
 parse(Bin) when is_binary(Bin) -> date(Bin, {undefined, undefined, undefined, undefined});
