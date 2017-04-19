@@ -361,10 +361,12 @@ defmodule RFC3339Test.Errors do
 
   test "badyear" do
     assert {:error, :badyear} = RFC3339.parse("xxxx-06-21T00:00:00Z")
+    assert {:error, :badyear} = RFC3339.parse("20O7-01-31T00:00:00Z")
   end
 
   test "badmonth" do
     assert {:error, :badmonth} = RFC3339.parse("1979-xx-21T00:00:00Z")
+    assert {:error, :badmonth} = RFC3339.parse("1979-13-30T00:00:00Z")
   end
 
   test "badday" do

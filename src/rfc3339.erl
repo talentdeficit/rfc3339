@@ -209,7 +209,8 @@ to_day(D1, D2, Year, Month) ->
     Day when Day >= 29 andalso Day =< 31 ->
       case day_in_month(Year, Month, Day) of
         true  -> Day;
-        false -> {error, badday}
+        false -> {error, badday};
+        {error, _} = Error -> Error
       end;
     _ -> {error, badday}
   catch
