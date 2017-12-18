@@ -24,6 +24,20 @@
 -type tz() :: tz_offset().
 -type tz_offset() :: -1439..1439.
 
+-type timestamp() :: {date(), time(), usec(), tz()}.
+
+-type maybe(T) :: T | undefined | nil.
+-type timestamp_map() :: #{
+  year => maybe(year()),
+  month => maybe(month()),
+  day => maybe(day()),
+  hour => maybe(hour()),
+  min => maybe(min()),
+  sec => maybe(sec()),
+  usec => maybe(usec()),
+  tz_offset => maybe(tz_offset())
+  }.
+
 -type error() :: badarg | baddate | badtime | badyear | badday | badhour | badminute | badsecond | badusec | badtimezone.
 
 -spec parse_to_local_datetime(binary()) -> {date(), time()}.
@@ -33,11 +47,11 @@ parse_to_local_datetime(Bin) ->
     UTCDateTime = calendar:gregorian_seconds_to_datetime(TZSecs + (60*TZ)),
     calendar:universal_time_to_local_time(UTCDateTime).
 
--spec parse(binary()) -> {ok, {date(), time(), usec(), tz()}} | {error, error()}.
+-spec parse(binary()) -> {ok, timestamp()} | {error, error()}.
 parse(Bin) when is_binary(Bin) -> date(Bin, {undefined, undefined, undefined, undefined});
 parse(_) -> {error, badarg}.
 
--spec to_map(binary()) -> {ok, map()} | {error, error()}.
+-spec to_map(binary()) -> {ok, timestamp_map()} | {error, error()}.
 to_map(Bin) when is_binary(Bin) ->
   case parse(Bin) of
     {ok, {Date, Time, USec, Tz}} -> mapify(Date, Time, USec, Tz, #{});
@@ -85,7 +99,7 @@ mapify(Time) when is_integer(Time) ->
   USec = Time rem 1000000,
   #{year => Year, month => Month, day => Day, hour => Hour, min => Min, sec => Sec, usec => USec}.
 
--spec format(map() | {date(), time(), usec(), tz()} | datetime() | integer()) -> {ok, binary()} | {error, error()}.
+-spec format(timestamp_map() | timestamp() | datetime() | integer()) -> {ok, binary()} | {error, error()}.
 format({Date, Time, USec, Tz})
 when is_tuple(Date), is_tuple(Time) ->
   format(mapify(Date, Time, USec, Tz, #{}));
