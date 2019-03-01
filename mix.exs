@@ -6,12 +6,12 @@ defmodule RFC3339.Mixfile do
   def project do
     [app: :rfc3339,
      version: @version,
-     description: description,
+     description: description(),
      elixir: "~> 1.2",
-     package: package,
+     package: package(),
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps]
+     deps: deps()]
   end
 
   def application do
