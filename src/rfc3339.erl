@@ -24,7 +24,7 @@
 -type tz() :: tz_offset().
 -type tz_offset() :: -1439..1439.
 
--type error() :: badarg | baddate | badtime | badyear | badday | badhour | badminute | badsecond | badusec | badtimezone.
+-type error() :: badarg | baddate | badtime | badyear | badmonth | badday | badhour | badminute | badsecond | badusec | badtimezone.
 
 %% -spec parse_to_local_datetime(binary()) -> {date(), time()} 
 parse_to_local_datetime(Bin) ->
@@ -33,16 +33,16 @@ parse_to_local_datetime(Bin) ->
     UTCDateTime = calendar:gregorian_seconds_to_datetime(case TZ of
                                                              _ when is_integer(TZ) ->
                                                                  TZSecs + (60*TZ);
-                                                             _ -> 	
+                                                             _ -> 
                                                                  TZSecs
                                                          end),
     calendar:universal_time_to_local_time(UTCDateTime).
 
--spec parse(binary()) -> {ok, {date(), time(), usec(), tz()}} | {error, error()}.
+-spec parse(binary()) -> {ok, {date(), time(), usec() | undefined, tz() | undefined}} | {error, error()}.
 parse(Bin) when is_binary(Bin) -> date(Bin, {undefined, undefined, undefined, undefined});
 parse(_) -> {error, badarg}.
 
--spec to_map(binary()) -> {ok, map()} | {error, error()}.
+-spec to_map(binary()) -> map() | {error, error()}.
 to_map(Bin) when is_binary(Bin) ->
   case parse(Bin) of
     {ok, {Date, Time, USec, Tz}} -> mapify(Date, Time, USec, Tz, #{});
@@ -90,16 +90,21 @@ mapify(Time) when is_integer(Time) ->
   GregorianSeconds = Time div 1000000 + Epoch,
   {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:gregorian_seconds_to_datetime(GregorianSeconds),
   USec = Time rem 1000000,
-  #{year => Year, month => Month, day => Day, hour => Hour, min => Min, sec => Sec, usec => USec};
-mapify(_) -> {error, badarg}.
+  #{year => Year, month => Month, day => Day, hour => Hour, min => Min, sec => Sec, usec => USec}.
 
 -spec format(map() | {date(), time(), usec(), tz()} | datetime() | integer()) -> {ok, binary()} | {error, error()}.
 format({Date, Time, USec, Tz})
 when is_tuple(Date), is_tuple(Time) ->
-  format(mapify(Date, Time, USec, Tz, #{}));
+  case mapify(Date, Time, USec, Tz, #{}) of
+    Map when is_map(Map) -> format(Map);
+    Error = {error, _} -> Error
+  end;
 format({Date, Time})
 when is_tuple(Date), is_tuple(Time) ->
-  format(mapify(Date, Time, undefined, undefined, #{}));
+  case mapify(Date, Time, undefined, undefined, #{}) of
+    Map when is_map(Map) -> format(Map);
+    Error = {error, _} -> Error
+  end;
 format(Time) when is_integer(Time) ->
   %% USec is the greatest fidelity supported. nano seconds are converted lossily 
   USec = erlang:convert_time_unit(Time, native, micro_seconds),
@@ -109,7 +114,7 @@ format(Dt) when is_map(Dt) ->
   Time = format_time(Dt),
   {ok, format_(Date, Time)}.
 
--spec format(integer(), erlang:time_unit()) -> {ok, binary()} | {error, error()}.
+-spec format(integer(), erlang:time_unit()) -> {ok, binary()} | {error, badarg}.
 format(Time, Unit) when is_integer(Time) ->
   USec = erlang:convert_time_unit(Time, Unit, micro_seconds),
   format(mapify(USec)).
@@ -154,8 +159,7 @@ when X >= $0 andalso X =< $9 ->
   end;
 %% not a digit, insert usecs into time and proceed to tz
 usec(Bin, {Date, Time, undefined, undefined}, USec, _) ->
-  tz(Bin, {Date, Time, USec, undefined});
-usec(_, _, _, _) -> {error, badusec}.
+  tz(Bin, {Date, Time, USec, undefined}).
 
 tz(<<$+, H1, H2, $:, M1, M2>>, {Date, Time, USec, undefined}) ->
   Hour = to_hour(H1, H2),
